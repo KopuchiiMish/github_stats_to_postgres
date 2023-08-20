@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "github-stats-to-postgres"
+version = "0.1.0"
+description = ""
+authors = ["nataliagovorushkina <a10061514@gmail.com>"]
+readme = "README.md"
+packages = [{include = "github_stats_to_postgres"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

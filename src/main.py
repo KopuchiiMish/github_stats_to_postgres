@@ -1,31 +1,27 @@
-import os
+from postgres_db import PostgresDB
+from functions import *
+from config import config
 
-from dotenv import load_dotenv
-
-from src.functions import get_repos_stats
-from src.postgres_db import PostgresDB
-
-load_dotenv()
-
-db_config = {
-    'user': os.getenv('POSTGRES_USER'),
-    'password': os.getenv('POSTGRES_PASSWORD'),
-    'host': os.getenv('POSTGRES_HOST'),
-    'port': os.getenv('POSTGRES_PORT'),
-    'dbname': os.getenv('POSTGRES_DB')
-}
-
-
-def main():
-    data = get_repos_stats('skypro-008')
-    db = PostgresDB(**db_config)
-    db.insert_data(data)
-
-    for item in db.get_data(5, 'forks'):
-        print(item)
-
-    db.export_to_json()
-
+github_user = "skypro-008"
+params = config()
+db_name = "repos_stats"
 
 if __name__ == '__main__':
-    main()
+    list_ = get_repos_stats(github_user)
+
+    create_database(db_name, params)
+    print("БД создана")
+
+    params.update({"dbname": db_name})
+    database = PostgresDB(params)
+    database.insert_data(list_)
+    print("Таблицы созданы")
+
+    data = database.get_data()
+    print("Данные из БД получены")
+
+    database.export_to_json(data)
+    print("Экспорт успешно выполнен")
+
+    database.close_connection()
+    print("Закрытие соединения с БД")

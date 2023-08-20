@@ -1,51 +1,50 @@
-import psycopg2
 import json
+
+import psycopg2
 
 
 class PostgresDB:
-    def __init__(self, dbname: str, user: str, password: str, host: str = 'localhost', port: str = '5432',
-                 table_name: str = 'repos_stats'):
-        self.conn = psycopg2.connect(dbname=dbname, user=user, password=password, host=host, port=port)
+    def __init__(self, params):
+        self.conn = psycopg2.connect(**params)
+        self.conn.autocommit = True
         self.cur = self.conn.cursor()
-        self.table_name = table_name
 
-        self._create_table()
+    def insert_data(self, data):
+        query = '''DROP TABLE IF EXISTS repositories; 
+                   CREATE TABLE repositories 
+                   (
+                       id int PRIMARY KEY,
+                       name varchar(100) NOT NULL,
+                       size int,
+                       forks_count int,
+                       url text,
+                       created_at date NOT NULL
+                   )
+                '''
+        self.cur.execute(query)
+        for repo in data:
+            self.cur.execute('''INSERT INTO repositories(id, name, size, forks_count, url, created_at)
+                                VALUES (%s, %s, %s, %s, %s, %s)''',
+                             (repo['id'], repo['name'], repo['size'],
+                              repo['forks_count'], repo['url'], repo['created_at']))
 
-    def _create_table(self):
-        with self.conn:
-            self.cur.execute(f"""
-            CREATE TABLE IF NOT EXISTS {self.table_name} (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(255),
-            stars INT,
-            forks INT,
-            language VARCHAR(255)
-            );
-            """)
+    @staticmethod
+    def export_to_json(data):
+        the_list = [{'id': repo[0],
+                     'name': repo[1],
+                     'size': repo[2],
+                     'forks_count': repo[3],
+                     'url': repo[4],
+                     'created_at': str(repo[5])}
+                    for repo in data]
+        with open('repositories.json', 'w') as f:
+            f.write(json.dumps(the_list, indent=2, ensure_ascii=False))
 
-    def insert_data(self, stats: list[dict]):
-        with self.conn:
-            for stat in stats:
-                self.cur.execute(
-                    f"INSERT INTO {self.table_name} (name, stars, forks, language) VALUES (%s, %s, %s, %s)",
-                    (stat["name"], stat["stars"], stat["forks"], stat["language"]))
+    def get_data(self):
+        self.cur.execute('SELECT * FROM repositories')
+        data = self.cur.fetchall()
+        return data
 
-    def export_to_json(self):
-        with self.conn:
-            self.cur.execute(f"SELECT * FROM {self.table_name}")
-            data = self.cur.fetchall()
-            data_dict = [{"id": d[0], "name": d[1], "stars": d[2], "forks": d[3], "language": d[4]} for d in data]
-            with open(f"{self.table_name}.json", "w") as f:
-                json.dump(data_dict, f, indent=4)
-
-    def get_data(self, count: int, sort_by: str = 'name') -> list[dict]:
-        with self.conn:
-            if sort_by == 'name' or sort_by == 'language':
-                self.cur.execute(f"SELECT * FROM {self.table_name} ORDER BY {sort_by} ASC LIMIT {count}")
-            elif sort_by == 'stars' or sort_by == 'forks':
-                self.cur.execute(f"SELECT * FROM {self.table_name} ORDER BY {sort_by} DESC LIMIT {count}")
-            else:
-                self.cur.execute(f"SELECT * FROM {self.table_name} ORDER BY name ASC LIMIT {count}")
-            data = self.cur.fetchall()
-            data_dict = [{"name": d[1], "stars": d[2], "forks": d[3], "language": d[4]} for d in data]
-            return data_dict
+    def close_connection(self):
+        self.cur.close()
+        self.conn.close()
