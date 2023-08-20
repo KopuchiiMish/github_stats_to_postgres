@@ -1,6 +1,6 @@
-from postgres_db import PostgresDB
-from functions import *
-from config import config
+from src.postgres_db import PostgresDB
+from src.functions import *
+from src.config import config
 
 github_user = "skypro-008"
 params = config()
